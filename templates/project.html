@@ -5,76 +5,108 @@
 
 <title>城市调研平台</title>
 
-<link rel="stylesheet"
-href="https://unpkg.com/leaflet/dist/leaflet.css"/>
-
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
 <style>
-
-html, body{
-    margin:0;
-    height:100%;
-    font-family:"Microsoft YaHei";
+html, body {
+    margin: 0;
+    height: 100%;
+    font-family: "Microsoft YaHei", sans-serif;
 }
 
-#container{
-    display:flex;
-    height:100%;
+#container {
+    display: flex;
+    height: 100%;
 }
 
-#map{
-    width:50%;
-    height:100%;
+#map {
+    width: 50%;
+    height: 100%;
 }
 
-#panel{
-    width:50%;
-    padding:16px;
-    box-sizing:border-box;
-    overflow-y:auto;
-    background:#fafafa;
-    border-left:1px solid #ccc;
+#panel {
+    width: 50%;
+    padding: 14px;
+    box-sizing: border-box;
+    overflow-y: auto;
+    background: #fafafa;
+    border-left: 1px solid #ccc;
 }
 
-video{
-    width:100%;
-    height:420px;
-    background:black;
+h2 {
+    margin: 0 0 10px 0;
 }
 
-button{
-    margin:4px;
-    padding:8px 12px;
-    cursor:pointer;
+#topInfoRow {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 12px;
 }
 
-.route-item{
-    padding:8px;
-    margin-bottom:6px;
-    border:1px solid #ddd;
-    background:white;
-    cursor:pointer;
+#info, #help {
+    flex: 1;
+    background: white;
+    padding: 10px 12px;
+    border: 1px solid #ddd;
+    box-sizing: border-box;
+    font-size: 14px;
+    line-height: 1.6;
 }
 
-.route-item.active{
-    background:#dbeafe;
+#help {
+    background: #fffbe6;
 }
 
-#info{
-    background:white;
-    padding:12px;
-    margin-bottom:12px;
-    border:1px solid #ddd;
+#info p {
+    margin: 4px 0;
 }
 
-#help{
-    background:#fffbe6;
-    padding:12px;
-    margin-bottom:12px;
-    border:1px solid #ddd;
+#help ul {
+    margin: 6px 0 0 18px;
+    padding: 0;
 }
 
+video {
+    width: 100%;
+    height: 420px;
+    background: black;
+    margin-bottom: 10px;
+}
+
+#buttons {
+    margin-bottom: 10px;
+}
+
+button {
+    margin: 4px 4px 6px 0;
+    padding: 7px 12px;
+    cursor: pointer;
+}
+
+button:disabled {
+    cursor: not-allowed;
+    opacity: 0.45;
+}
+
+.route-item {
+    padding: 8px;
+    margin-bottom: 6px;
+    border: 1px solid #ddd;
+    background: white;
+    cursor: pointer;
+    border-radius: 4px;
+}
+
+.route-item:hover {
+    background: #eef5ff;
+}
+
+.route-item.active {
+    background: #dbeafe;
+    border-color: #2563eb;
+    font-weight: bold;
+}
 </style>
 </head>
 
@@ -82,242 +114,206 @@ button{
 
 <div id="container">
 
-<div id="map"></div>
+    <div id="map"></div>
 
-<div id="panel">
+    <div id="panel">
 
-<h2 id="title">调研项目</h2>
+        <h2 id="title">调研项目</h2>
 
-<div id="info"></div>
+        <div id="topInfoRow">
+            <div id="info"></div>
 
-<div id="help">
-<b>操作说明：</b>
-<ul>
-<li>点击地图路径或右侧列表，可切换对应视频。</li>
-<li>鼠标悬停路径，可查看路径名称。</li>
-<li>“动态播放路径”可查看调研行进方向。</li>
-<li>“上一条 / 下一条”可快速切换视频与路径。</li>
-</ul>
-</div>
+            <div id="help">
+                <b>操作说明：</b>
+                <ul>
+                    <li>点击地图路径或右侧列表，可切换对应视频。</li>
+                    <li>鼠标悬停路径，可查看路径名称。</li>
+                    <li>“动态播放路径”可查看调研行进方向。</li>
+                    <li>“上一条 / 下一条”可快速切换视频与路径。</li>
+                </ul>
+            </div>
+        </div>
 
-<video id="videoPlayer"
-controls
-preload="metadata"></video>
+        <video id="videoPlayer" controls preload="metadata"></video>
 
-<div>
+        <div id="buttons">
+            <button id="firstBtn" onclick="firstRoute()">加载第1条路径</button>
+            <button id="prevBtn" onclick="prevRoute()">上一条路径</button>
+            <button id="nextBtn" onclick="nextRoute()">下一条路径</button>
+            <button onclick="showAllRoutes()">显示全部路径</button>
+            <button onclick="playSelectedRoute()">动态播放路径</button>
+            <button onclick="stopAnimation()">停止播放</button>
+        </div>
 
-<button onclick="prevRoute()">上一条路径</button>
+        <h3>路径列表</h3>
+        <div id="routeList"></div>
 
-<button onclick="nextRoute()">下一条路径</button>
-
-<button onclick="showAllRoutes()">显示全部路径</button>
-
-<button onclick="playSelectedRoute()">动态播放路径</button>
-
-<button onclick="stopAnimation()">停止播放</button>
-
-</div>
-
-<h3>路径列表</h3>
-
-<div id="routeList"></div>
-
-</div>
+    </div>
 </div>
 
 <script>
-
 const PROJECT = "{{ project }}";
 
 const colors = [
-"#e41a1c","#377eb8","#4daf4a","#984ea3",
-"#ff7f00","#a65628","#f781bf","#999999",
-"#1b9e77","#d95f02","#7570b3","#e7298a",
-"#66a61e","#e6ab02","#a6761d","#666666"
+    "#e41a1c", "#377eb8", "#4daf4a", "#984ea3",
+    "#ff7f00", "#a65628", "#f781bf", "#999999",
+    "#1b9e77", "#d95f02", "#7570b3", "#e7298a",
+    "#66a61e", "#e6ab02", "#a6761d", "#666666",
+    "#00a6d6"
 ];
 
-const map = L.map("map").setView([31.31,120.61],15);
+const map = L.map("map").setView([31.31, 120.61], 15);
 
 L.tileLayer(
-"https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-{
-    maxZoom:19,
-    attribution:"&copy; OpenStreetMap"
-}).addTo(map);
+    "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+    {
+        maxZoom: 19,
+        attribution: "&copy; OpenStreetMap"
+    }
+).addTo(map);
 
 let routes = [];
-
 let routeLayers = {};
 let routeCoords = {};
-
 let selectedIndex = -1;
 
 let movingMarker = null;
 let animationTimer = null;
+let startMarker = null;
+let endMarker = null;
 
-const videoPlayer =
-document.getElementById("videoPlayer");
+const videoPlayer = document.getElementById("videoPlayer");
+const routeList = document.getElementById("routeList");
 
-const routeList =
-document.getElementById("routeList");
+const firstBtn = document.getElementById("firstBtn");
+const prevBtn = document.getElementById("prevBtn");
+const nextBtn = document.getElementById("nextBtn");
 
-function getLatLngsFromGeoJSON(geojson){
-
-    const geom =
-    geojson.features[0].geometry;
+function getLatLngsFromGeoJSON(geojson) {
+    const geom = geojson.features[0].geometry;
 
     let coords = [];
 
-    if(geom.type==="LineString"){
+    if (geom.type === "LineString") {
         coords = geom.coordinates;
-    }
-    else if(geom.type==="MultiLineString"){
+    } else if (geom.type === "MultiLineString") {
         coords = geom.coordinates.flat();
+    } else {
+        console.error("不支持的几何类型：", geom.type);
     }
 
-    return coords.map(c=>[c[1],c[0]]);
+    return coords.map(c => [c[1], c[0]]);
 }
 
-async function init(){
-
-    const response =
-    await fetch(`/api/${PROJECT}/data`);
-
+async function init() {
+    const response = await fetch(`/api/${PROJECT}/data`);
     const data = await response.json();
 
     routes = data.routes;
 
-    renderMeta(data.meta);
-
+    renderMeta(data.meta || {});
     await loadRoutes();
-
+    updateButtons();
 }
 
-function renderMeta(meta){
-
-    if(meta.title){
-        document.getElementById("title").innerText =
-        meta.title;
+function renderMeta(meta) {
+    if (meta.title) {
+        document.getElementById("title").innerText = meta.title;
     }
 
     let html = "";
 
-    if(meta.date){
+    if (meta.date) {
         html += `<p><b>调研时间：</b>${meta.date}</p>`;
     }
 
-    if(meta.description){
+    if (meta.description) {
         html += `<p>${meta.description}</p>`;
     }
 
-    if(meta.download_url){
-
+    if (meta.download_url) {
         html += `
-        <p>
-        <b>源文件下载：</b>
-        <a href="${meta.download_url}" target="_blank">
-        百度网盘链接
-        </a>
-        </p>
+            <p>
+                <b>源文件下载：</b>
+                <a href="${meta.download_url}" target="_blank">百度网盘链接</a>
+            </p>
         `;
     }
 
-    if(meta.download_password){
-
-        html += `
-        <p>
-        <b>提取码：</b>
-        ${meta.download_password}
-        </p>
-        `;
+    if (meta.download_password) {
+        html += `<p><b>提取码：</b>${meta.download_password}</p>`;
     }
 
-    document.getElementById("info").innerHTML =
-    html;
+    const info = document.getElementById("info");
+
+    if (html.trim() === "") {
+        info.style.display = "none";
+    } else {
+        info.innerHTML = html;
+    }
 }
 
-async function loadRoutes(){
-
-    for(let i=0;i<routes.length;i++){
-
+async function loadRoutes() {
+    for (let i = 0; i < routes.length; i++) {
         const route = routes[i];
 
-        const response =
-        await fetch(route.geojson);
+        const response = await fetch(route.geojson);
+        const geojson = await response.json();
 
-        const geojson =
-        await response.json();
+        const latlngs = getLatLngsFromGeoJSON(geojson);
+        routeCoords[route.name] = latlngs;
 
-        const latlngs =
-        getLatLngsFromGeoJSON(geojson);
-
-        routeCoords[route.name] =
-        latlngs;
-
-        const layer = L.polyline(latlngs,{
-            color:colors[i%colors.length],
-            weight:5,
-            opacity:0.85
+        const layer = L.polyline(latlngs, {
+            color: colors[i % colors.length],
+            weight: 5,
+            opacity: 0.85
         }).addTo(map);
 
-        layer.bindTooltip(route.name,{
-            sticky:true
+        layer.bindTooltip(route.name, {
+            sticky: true,
+            direction: "top"
         });
 
-        layer.on("click",()=>{
+        layer.on("click", () => {
             selectRoute(i);
         });
 
-        layer.on("mouseover",()=>{
-
-            if(i!==selectedIndex){
-
+        layer.on("mouseover", () => {
+            if (i !== selectedIndex) {
                 layer.setStyle({
-                    weight:8,
-                    opacity:1
+                    weight: 8,
+                    opacity: 1
                 });
-
             }
-
         });
 
-        layer.on("mouseout",()=>{
+        layer.on("mouseout", () => {
             updateRouteStyles();
         });
 
         routeLayers[route.name] = layer;
-
         addRouteItem(i);
-
     }
 
     showAllRoutes();
-
 }
 
-function addRouteItem(index){
-
+function addRouteItem(index) {
     const route = routes[index];
 
-    const div =
-    document.createElement("div");
-
+    const div = document.createElement("div");
     div.className = "route-item";
-
     div.innerText = route.name;
+    div.id = `route-${index}`;
 
-    div.onclick = ()=>{
+    div.onclick = () => {
         selectRoute(index);
     };
 
-    div.id = `route-${index}`;
-
     routeList.appendChild(div);
-
 }
 
-function selectRoute(index){
-
+function selectRoute(index) {
     selectedIndex = index;
 
     stopAnimation();
@@ -325,202 +321,172 @@ function selectRoute(index){
     const route = routes[index];
 
     videoPlayer.pause();
-
     videoPlayer.src = route.video;
-
     videoPlayer.load();
 
     updateRouteStyles();
-
     updateRouteList();
+    updateButtons();
 
-    const layer =
-    routeLayers[route.name];
+    const layer = routeLayers[route.name];
 
-    map.fitBounds(layer.getBounds(),{
-        padding:[40,40]
+    map.fitBounds(layer.getBounds(), {
+        padding: [40, 40]
     });
-
 }
 
-function updateRouteStyles(){
-
-    for(let i=0;i<routes.length;i++){
-
+function updateRouteStyles() {
+    for (let i = 0; i < routes.length; i++) {
         const route = routes[i];
+        const layer = routeLayers[route.name];
 
-        const layer =
-        routeLayers[route.name];
-
-        if(selectedIndex===-1){
-
+        if (selectedIndex === -1) {
             layer.setStyle({
-                weight:5,
-                opacity:0.85
+                weight: 5,
+                opacity: 0.85
             });
-
-        }
-
-        else if(i===selectedIndex){
-
+        } else if (i === selectedIndex) {
             layer.setStyle({
-                weight:9,
-                opacity:1
+                weight: 9,
+                opacity: 1
             });
 
             layer.bringToFront();
-
-        }
-
-        else{
-
+        } else {
             layer.setStyle({
-                weight:3,
-                opacity:0.18
+                weight: 3,
+                opacity: 0.18
             });
-
         }
-
     }
-
 }
 
-function updateRouteList(){
-
-    document
-    .querySelectorAll(".route-item")
-    .forEach(el=>{
-
+function updateRouteList() {
+    document.querySelectorAll(".route-item").forEach(el => {
         el.classList.remove("active");
-
     });
 
-    if(selectedIndex!==-1){
-
-        document
-        .getElementById(`route-${selectedIndex}`)
-        .classList.add("active");
-
+    if (selectedIndex !== -1) {
+        document.getElementById(`route-${selectedIndex}`).classList.add("active");
     }
-
 }
 
-function prevRoute(){
-
-    if(selectedIndex<=0){
-        return;
-    }
-
-    selectRoute(selectedIndex-1);
-
+function updateButtons() {
+    firstBtn.disabled = routes.length === 0 || selectedIndex === 0;
+    prevBtn.disabled = selectedIndex <= 0;
+    nextBtn.disabled = selectedIndex === -1 || selectedIndex >= routes.length - 1;
 }
 
-function nextRoute(){
-
-    if(selectedIndex>=routes.length-1){
-        return;
+function firstRoute() {
+    if (routes.length > 0) {
+        selectRoute(0);
     }
-
-    selectRoute(selectedIndex+1);
-
 }
 
-function showAllRoutes(){
+function prevRoute() {
+    if (selectedIndex > 0) {
+        selectRoute(selectedIndex - 1);
+    }
+}
 
+function nextRoute() {
+    if (selectedIndex >= 0 && selectedIndex < routes.length - 1) {
+        selectRoute(selectedIndex + 1);
+    }
+}
+
+function showAllRoutes() {
     selectedIndex = -1;
 
     stopAnimation();
 
+    videoPlayer.pause();
+    videoPlayer.removeAttribute("src");
+    videoPlayer.load();
+
     updateRouteStyles();
-
     updateRouteList();
+    updateButtons();
 
-    const layers =
-    Object.values(routeLayers);
+    const layers = Object.values(routeLayers);
 
-    const group =
-    L.featureGroup(layers);
+    if (layers.length > 0) {
+        const group = L.featureGroup(layers);
 
-    map.fitBounds(group.getBounds(),{
-        padding:[40,40]
-    });
-
+        map.fitBounds(group.getBounds(), {
+            padding: [40, 40]
+        });
+    }
 }
 
-function playSelectedRoute(){
-
-    if(selectedIndex===-1){
+function playSelectedRoute() {
+    if (selectedIndex === -1) {
         alert("请先选择路径");
         return;
     }
 
     stopAnimation();
 
-    const route =
-    routes[selectedIndex];
+    const route = routes[selectedIndex];
+    const latlngs = routeCoords[route.name];
 
-    const latlngs =
-    routeCoords[route.name];
+    if (!latlngs || latlngs.length === 0) {
+        alert("当前路径没有坐标点");
+        return;
+    }
 
     let index = 0;
 
-    movingMarker =
-    L.circleMarker(latlngs[0],{
+    startMarker = L.marker(latlngs[0]).addTo(map).bindPopup("起点");
+    endMarker = L.marker(latlngs[latlngs.length - 1]).addTo(map).bindPopup("终点");
 
-        radius:8,
-        color:"red",
-        fillColor:"red",
-        fillOpacity:1
-
+    movingMarker = L.circleMarker(latlngs[0], {
+        radius: 8,
+        color: "red",
+        fillColor: "red",
+        fillOpacity: 1
     }).addTo(map);
 
-    animationTimer =
-    setInterval(()=>{
-
-        if(index>=latlngs.length){
-
+    animationTimer = setInterval(() => {
+        if (index >= latlngs.length) {
             stopAnimation();
-
             return;
-
         }
 
-        movingMarker
-        .setLatLng(latlngs[index]);
+        movingMarker.setLatLng(latlngs[index]);
 
-        map.panTo(latlngs[index],{
-            animate:true,
-            duration:0.1
+        map.panTo(latlngs[index], {
+            animate: true,
+            duration: 0.1
         });
 
         index++;
-
-    },80);
-
+    }, 80);
 }
 
-function stopAnimation(){
-
-    if(animationTimer){
-
+function stopAnimation() {
+    if (animationTimer) {
         clearInterval(animationTimer);
-
         animationTimer = null;
-
     }
 
-    if(movingMarker){
-
+    if (movingMarker) {
         map.removeLayer(movingMarker);
-
         movingMarker = null;
-
     }
 
+    if (startMarker) {
+        map.removeLayer(startMarker);
+        startMarker = null;
+    }
+
+    if (endMarker) {
+        map.removeLayer(endMarker);
+        endMarker = null;
+    }
 }
 
 init();
-
 </script>
 
 </body>

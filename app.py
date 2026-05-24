@@ -4,13 +4,11 @@ import json
 
 app = Flask(__name__)
 
-PROJECT_ROOT = Path("projects")
+PROJECT_ROOT = Path("data")
 
 
-def numeric_sort_key(path: Path):
-    stem = path.stem
-    first = stem.split("-")[0]
-
+def numeric_sort_key(name: str):
+    first = name.split("-")[0]
     return int(first) if first.isdigit() else 9999
 
 
@@ -20,28 +18,27 @@ def home():
         p.name for p in PROJECT_ROOT.iterdir()
         if p.is_dir()
     ]
-
     return jsonify(projects)
 
 
 @app.route("/<project>")
 def project_page(project):
+    project_dir = PROJECT_ROOT / project
+
+    if not project_dir.exists():
+        abort(404)
+
     return render_template("project.html", project=project)
 
 
 @app.route("/api/<project>/data")
 def project_data(project):
-
     project_dir = PROJECT_ROOT / project
-
     geojson_dir = project_dir / "geojsons"
     video_dir = project_dir / "videos"
     meta_path = project_dir / "meta.json"
 
-    if not geojson_dir.exists():
-        abort(404)
-
-    if not video_dir.exists():
+    if not geojson_dir.exists() or not video_dir.exists():
         abort(404)
 
     meta = {}
@@ -55,7 +52,7 @@ def project_data(project):
 
     names = sorted(
         set(geojsons.keys()) & set(videos.keys()),
-        key=lambda x: numeric_sort_key(Path(x))
+        key=numeric_sort_key
     )
 
     routes = []
@@ -75,7 +72,6 @@ def project_data(project):
 
 @app.route("/media/<project>/<folder>/<path:filename>")
 def media(project, folder, filename):
-
     if folder not in ["geojsons", "videos"]:
         abort(404)
 
@@ -84,7 +80,8 @@ def media(project, folder, filename):
     return send_from_directory(
         directory,
         filename,
-        conditional=True
+        conditional=True,
+        max_age=0
     )
 
 
